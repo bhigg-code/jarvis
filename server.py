@@ -48,21 +48,25 @@ SPEECH_MAX_CHARS = int(os.getenv("SPEECH_MAX_CHARS", "300"))
 # refuses to forward messages that contain recognisable secrets to Hermes.
 import re as _re
 
+# Patterns are precise — anchored to known prefixes to avoid false positives on
+# normal speech text that comes through the Whisper transcription path.
 _SECRET_PATTERNS = [
     _re.compile(r'\bsk-[A-Za-z0-9_\-]{20,}\b'),           # OpenAI sk- keys
     _re.compile(r'\bsk_[A-Za-z0-9_\-]{20,}\b'),           # ElevenLabs sk_ keys
     _re.compile(r'\bghp_[A-Za-z0-9_]{36,}\b'),            # GitHub PATs
     _re.compile(r'\bgho_[A-Za-z0-9_]{36,}\b'),
     _re.compile(r'\bghx_[A-Za-z0-9_]{36,}\b'),
+    _re.compile(r'\bghs_[A-Za-z0-9_]{36,}\b'),
     _re.compile(r'\bglpat-[A-Za-z0-9_\-]{20,}\b'),        # GitLab PATs
     _re.compile(r'\bxox[baprs]-[0-9A-Za-z\-]{10,}\b'),    # Slack
     _re.compile(r'\bAIza[0-9A-Za-z\-_]{35}\b'),           # Google API keys
     _re.compile(r'\bhvs\.[A-Za-z0-9]{24,}\b'),            # Vault tokens
     _re.compile(r'\bAKIA[0-9A-Z]{16}\b'),                 # AWS key IDs
+    _re.compile(r'\b(?:MHT|NTM|ODM)[A-Za-z0-9+/]{40,}={0,2}\b'),  # Bot tokens
     _re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----'),
+    # Generic assignment — only fires when an explicit keyword is present (safe for speech)
     _re.compile(
-        r'(?:password|passwd|secret|api[_\s-]?key|token|bearer|private[_\s-]?key)'
-        r'\s*[:=]\s*\S{8,}',
+        r'(?:password|passwd|api[_\s-]?key|secret[_\s-]?key)\s*[:=]\s*\S{8,}',
         _re.IGNORECASE,
     ),
 ]

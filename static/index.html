@@ -1216,30 +1216,30 @@ const THOUGHTS = [
 // ── Secrets / credential guard (client-side) ────────────────────────────────
 // Patterns that look like secrets, API keys, passwords, tokens, etc.
 // If a match is found the message is blocked before it ever leaves the browser.
+// Each entry: [regex, description]
+// Patterns are precise — anchored to known prefixes to avoid false positives on normal speech.
 const SECRET_PATTERNS = [
-  /\bsk-[A-Za-z0-9_\-]{20,}\b/,                        // OpenAI / ElevenLabs sk- keys
-  /\bsk_[A-Za-z0-9_\-]{20,}\b/,                        // ElevenLabs sk_ keys
-  /\bghp_[A-Za-z0-9_]{36,}\b/,                          // GitHub personal tokens
-  /\bgho_[A-Za-z0-9_]{36,}\b/,                          // GitHub OAuth tokens
-  /\bghx_[A-Za-z0-9_]{36,}\b/,
-  /\bglpat-[A-Za-z0-9_\-]{20,}\b/,                      // GitLab PATs
-  /\bxox[baprs]-[0-9A-Za-z\-]{10,}\b/,                  // Slack tokens
-  /\bAIza[0-9A-Za-z\-_]{35}\b/,                         // Google API keys
-  /\b[A-Za-z0-9]{32}\.[A-Za-z0-9]{6}\.[A-Za-z0-9_\-]{27,}\b/, // Discord bot tokens
-  /\bhvs\.[A-Za-z0-9]{24,}\b/,                          // HashiCorp Vault tokens
-  /\bAKIA[0-9A-Z]{16}\b/,                               // AWS access key IDs
-  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i, // UUIDs (broad — only flag if paired with keyword below)
-  /(?:password|passwd|secret|api[_\s-]?key|token|bearer|private[_\s-]?key)\s*[:=]\s*\S{8,}/i,
-  /-----BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/,
+  [/\bsk-[A-Za-z0-9_\-]{20,}\b/,              'OpenAI key'],
+  [/\bsk_[A-Za-z0-9_\-]{20,}\b/,              'ElevenLabs key'],
+  [/\bghp_[A-Za-z0-9_]{36,}\b/,               'GitHub PAT'],
+  [/\bgho_[A-Za-z0-9_]{36,}\b/,               'GitHub OAuth token'],
+  [/\bghx_[A-Za-z0-9_]{36,}\b/,               'GitHub token'],
+  [/\bghs_[A-Za-z0-9_]{36,}\b/,               'GitHub server token'],
+  [/\bglpat-[A-Za-z0-9_\-]{20,}\b/,           'GitLab PAT'],
+  [/\bxox[baprs]-[0-9A-Za-z\-]{10,}\b/,       'Slack token'],
+  [/\bAIza[0-9A-Za-z\-_]{35}\b/,              'Google API key'],
+  [/\bhvs\.[A-Za-z0-9]{24,}\b/,               'Vault token'],
+  [/\bAKIA[0-9A-Z]{16}\b/,                    'AWS key ID'],
+  [/\b(MHT|NTM|ODM)[A-Za-z0-9+/]{40,}={0,2}\b/, 'Possible bot token'],
+  [/-----BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/, 'Private key'],
+  // Generic: only fires when an explicit assignment keyword is present (safe for speech)
+  [/(?:password|passwd|api[_\s-]?key|secret[_\s-]?key)\s*[:=]\s*\S{8,}/i, 'Credential assignment'],
 ];
 
-// Returns the type of secret detected, or null if clean.
+// Returns description of detected secret, or null if clean.
 function detectSecret(text) {
-  // Skip UUID-only check unless accompanied by a keyword
-  const uuidPattern = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
-  for (const pat of SECRET_PATTERNS) {
-    if (pat === uuidPattern) continue; // handled above — skip standalone
-    if (pat.test(text)) return pat.toString();
+  for (const [pat, label] of SECRET_PATTERNS) {
+    if (pat.test(text)) return label;
   }
   return null;
 }
