@@ -1131,8 +1131,9 @@ async function transcribeAndSend(blob) {
       audioUnlocked = true;
       sendMessage(data.text.trim());
     } else {
-      addMessage('error', 'Could not understand audio. Please try again.');
+      addMessage('error', '🎤 Couldn’t make out what you said — please speak clearly and try again.');
       setStatus('READY');
+      hintText.textContent = 'tap to speak';
     }
   } catch (e) {
     addMessage('error', `Transcription failed: ${e.message}`);
@@ -1176,8 +1177,8 @@ micBtn.addEventListener('click', () => {
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunks, { type: mimeType });
-        if (blob.size < 500) {
-          addMessage('error', 'Recording too short — try again and speak clearly.');
+        if (blob.size < 200) {
+          addMessage('error', 'Recording too short — try again.');
           setStatus('READY'); hintText.textContent = 'tap to speak';
           return;
         }

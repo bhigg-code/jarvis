@@ -378,19 +378,54 @@ async def transcribe(audio: UploadFile = File(...)):
         tmp_path = tmp.name
 
     def run_whisper(path):
+        # Pre-process with ffmpeg: normalise to 16kHz mono WAV so Whisper always
+        # gets a clean, consistent input regardless of what the browser sends
+        # (Safari sends audio/mp4 AAC, Chrome sends audio/webm;codecs=opus, etc.)
+        wav_path = path + ".wav"
+        try:
+            ffmpeg_result = subprocess.run(
+                [
+                    "ffmpeg", "-y",
+                    "-i", path,
+                    "-ar", "16000",
+                    "-ac", "1",
+                    "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
+                    wav_path,
+                ],
+                capture_output=True, text=True, timeout=30,
+            )
+            transcribe_path = wav_path if os.path.exists(wav_path) else path
+        except Exception:
+            transcribe_path = path
+
         script = f"""
-import sys
+import sys, os
 sys.path.insert(0, '{HERMES_VENV}/lib/python3.12/site-packages')
 from faster_whisper import WhisperModel
 model = WhisperModel("base", device="cpu", compute_type="int8")
-segments, _ = model.transcribe("{path}", beam_size=5, language="en")
-print(" ".join(s.text for s in segments).strip())
+segments, info = model.transcribe(
+    "{transcribe_path}",
+    beam_size=5,
+    language="en",
+    no_speech_threshold=0.8,
+    temperature=[0.0, 0.2, 0.4],
+    vad_filter=True,
+    vad_parameters=dict(min_silence_duration_ms=300),
+)
+result = " ".join(s.text for s in segments).strip()
+print(result)
 """
         result = subprocess.run(
             [HERMES_BIN, "-c", script],
             capture_output=True, text=True, timeout=30,
             env=hermes_env(),
         )
+        # Clean up converted wav
+        try:
+            if os.path.exists(wav_path):
+                os.unlink(wav_path)
+        except Exception:
+            pass
         return result.stdout.strip()
 
     text = ""
@@ -398,7 +433,7 @@ print(" ".join(s.text for s in segments).strip())
         loop = asyncio.get_event_loop()
         text = await asyncio.wait_for(
             loop.run_in_executor(executor, run_whisper, tmp_path),
-            timeout=35
+            timeout=60
         )
     except Exception:
         pass
