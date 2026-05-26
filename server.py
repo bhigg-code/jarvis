@@ -43,6 +43,33 @@ HERMES_API_MODEL    = os.getenv("HERMES_API_MODEL", "hermes-agent")
 
 SPEECH_MAX_CHARS = int(os.getenv("SPEECH_MAX_CHARS", "300"))
 
+# ── Server-side secrets scrubber ─────────────────────────────────────────────
+# Defence-in-depth: even if the frontend check is bypassed, the backend
+# refuses to forward messages that contain recognisable secrets to Hermes.
+import re as _re
+
+_SECRET_PATTERNS = [
+    _re.compile(r'\bsk-[A-Za-z0-9_\-]{20,}\b'),           # OpenAI sk- keys
+    _re.compile(r'\bsk_[A-Za-z0-9_\-]{20,}\b'),           # ElevenLabs sk_ keys
+    _re.compile(r'\bghp_[A-Za-z0-9_]{36,}\b'),            # GitHub PATs
+    _re.compile(r'\bgho_[A-Za-z0-9_]{36,}\b'),
+    _re.compile(r'\bghx_[A-Za-z0-9_]{36,}\b'),
+    _re.compile(r'\bglpat-[A-Za-z0-9_\-]{20,}\b'),        # GitLab PATs
+    _re.compile(r'\bxox[baprs]-[0-9A-Za-z\-]{10,}\b'),    # Slack
+    _re.compile(r'\bAIza[0-9A-Za-z\-_]{35}\b'),           # Google API keys
+    _re.compile(r'\bhvs\.[A-Za-z0-9]{24,}\b'),            # Vault tokens
+    _re.compile(r'\bAKIA[0-9A-Z]{16}\b'),                 # AWS key IDs
+    _re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----'),
+    _re.compile(
+        r'(?:password|passwd|secret|api[_\s-]?key|token|bearer|private[_\s-]?key)'
+        r'\s*[:=]\s*\S{8,}',
+        _re.IGNORECASE,
+    ),
+]
+
+def _contains_secret(text: str) -> bool:
+    return any(p.search(text) for p in _SECRET_PATTERNS)
+
 executor        = ThreadPoolExecutor(max_workers=8)
 hermes_executor = ThreadPoolExecutor(max_workers=4)
 
@@ -134,6 +161,12 @@ async def index():
 @app.post("/chat")
 async def chat(req: ChatRequest):
     """Non-streaming fallback — calls Hermes API synchronously."""
+    if _contains_secret(req.message):
+        raise HTTPException(
+            status_code=400,
+            detail="Message blocked: appears to contain a secret or credential. "
+                   "Never send API keys, passwords, or tokens to Jarvis.",
+        )
     with _session_lock:
         session_id = _session_state["id"]
 
@@ -193,6 +226,12 @@ async def chat_stream(req: ChatRequest):
     Tokens stream word-by-word as Hermes generates them.
     TTS audio is sent as a final SSE event after the full reply is assembled.
     """
+    if _contains_secret(req.message):
+        raise HTTPException(
+            status_code=400,
+            detail="Message blocked: appears to contain a secret or credential. "
+                   "Never send API keys, passwords, or tokens to Jarvis.",
+        )
 
     async def event_stream():
         with _session_lock:
