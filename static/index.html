@@ -19,7 +19,7 @@
 
   html, body {
     height: 100%;
-    overflow: hidden; /* prevent body scroll — only chat area scrolls */
+    overflow: hidden;
   }
 
   body {
@@ -28,28 +28,59 @@
     font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
     display: flex;
     flex-direction: column;
-    height: 100dvh; /* dynamic viewport height — accounts for iOS browser chrome */
+    height: 100dvh;
     padding-top: var(--safe-top);
     padding-left: var(--safe-left);
     padding-right: var(--safe-right);
+    transition: background 0.3s;
   }
 
+  body.theme-dim {
+    background: #12151f;
+  }
+
+  /* ── Header ──────────────────────────────────────────────────────────────── */
   header {
     width: 100%;
-    padding: 14px 20px 10px;
+    padding: 14px 16px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #1a2040;
     flex-shrink: 0;
+    position: relative;
   }
+
+  .hamburger-btn {
+    font-size: 18px;
+    width: 40px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #1e3a5f;
+    background: #0d2040;
+    color: #4fc3f7;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    flex-shrink: 0;
+    transition: background 0.2s;
+    z-index: 1;
+  }
+  .hamburger-btn:active { background: #1a3060; }
+
   .logo {
     font-size: 20px;
     font-weight: 700;
     letter-spacing: 4px;
     color: #4fc3f7;
     text-shadow: 0 0 20px #4fc3f755;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
+
   .status-pill {
     font-size: 11px;
     padding: 4px 10px;
@@ -60,8 +91,242 @@
     letter-spacing: 1px;
     white-space: nowrap;
     transition: background 0.3s, color 0.3s, border-color 0.3s;
+    flex-shrink: 0;
+    z-index: 1;
   }
-  /* Blinking cursor shown at end of streaming content */
+
+  /* ── Drawer Overlay ───────────────────────────────────────────────────────── */
+  #drawerOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #drawerOverlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── Side Drawer ──────────────────────────────────────────────────────────── */
+  #drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    background: #060d1a;
+    border-right: 1px solid #1e3a5f;
+    z-index: 101;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #drawer.open {
+    transform: translateX(0);
+  }
+
+  .drawer-header {
+    padding: 16px 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1a2a40;
+    flex-shrink: 0;
+    padding-top: calc(16px + var(--safe-top));
+  }
+  .drawer-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #4fc3f7;
+  }
+  .drawer-close {
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #1e3a5f;
+    background: #0d1a2e;
+    color: #8ab4d8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  .drawer-close:active { background: #1a2a40; }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .drawer-section-header {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #3a5080;
+    text-transform: uppercase;
+    padding: 12px 16px 6px;
+  }
+
+  /* ── Session List ─────────────────────────────────────────────────────────── */
+  .new-session-btn {
+    display: block;
+    margin: 4px 8px 8px;
+    padding: 8px 16px;
+    background: #0d2040;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    color: #4fc3f7;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 1px;
+    touch-action: manipulation;
+    transition: background 0.2s;
+  }
+  .new-session-btn:active { background: #1a3060; }
+
+  .session-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .session-row {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px;
+    margin: 2px 8px;
+    transition: background 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .session-row:hover { background: #0a1628; }
+  .session-row.active {
+    background: #0d2040;
+    border: 1px solid #1e3a5f;
+  }
+  .session-row-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .session-name {
+    font-size: 13px;
+    color: #c5d8ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .session-date {
+    font-size: 11px;
+    color: #3a5080;
+  }
+  .session-delete-btn {
+    font-size: 14px;
+    color: #ef5350;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+  .session-delete-btn:active { opacity: 1; }
+
+  .session-rename-input {
+    background: #0d1a2e;
+    color: #c5d8ff;
+    border: 1px solid #1e3a5f;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    outline: none;
+    width: 100%;
+  }
+
+  /* ── Admin Panel ──────────────────────────────────────────────────────────── */
+  .admin-row {
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .admin-label {
+    font-size: 12px;
+    color: #8ab4d8;
+    letter-spacing: 1px;
+  }
+  .admin-select {
+    background: #0d1a2e;
+    color: #8ab4d8;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    min-height: 34px;
+    max-width: 160px;
+  }
+  .theme-btns {
+    display: flex;
+    gap: 6px;
+  }
+  .theme-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #1e3a5f;
+    background: #0d1a2e;
+    color: #8ab4d8;
+    font-size: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.2s, color 0.2s;
+  }
+  .theme-btn.active {
+    background: #1a3060;
+    color: #4fc3f7;
+    border-color: #4fc3f755;
+  }
+  .clear-session-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #5c1a1a;
+    background: #2a0d0d;
+    color: #ef9a9a;
+    font-size: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.2s;
+  }
+  .clear-session-btn:active { background: #3a1010; }
+  .version-text {
+    font-size: 12px;
+    color: #3a5080;
+    letter-spacing: 1px;
+  }
+  .drawer-divider {
+    height: 1px;
+    background: #1a2a40;
+    margin: 8px 16px;
+  }
+
+  /* ── Chat Area ────────────────────────────────────────────────────────────── */
   .stream-content::after {
     content: '█';
     animation: blink 0.8s step-end infinite;
@@ -70,7 +335,9 @@
     margin-left: 2px;
   }
   .stream-content.done::after { content: ''; animation: none; }
+
   @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
   .chat-area {
     flex: 1;
     width: 100%;
@@ -80,9 +347,9 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    /* Prevent content hiding behind keyboard on iOS */
     overscroll-behavior: contain;
   }
+
   .message {
     max-width: 92%;
     padding: 10px 14px;
@@ -93,6 +360,7 @@
     word-break: break-word;
   }
   @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
   .message.user {
     align-self: flex-end;
     background: #1a3060;
@@ -119,6 +387,7 @@
     color: #ef9a9a;
     font-size: 13px;
   }
+
   .thinking {
     align-self: flex-start;
     color: #4fc3f7;
@@ -134,11 +403,13 @@
     width: 6px; height: 6px;
     border-radius: 50%;
     background: #4fc3f7;
-    animation: blink 1.2s infinite;
+    animation: dotBlink 1.2s infinite;
   }
   .dot-flashing span:nth-child(2) { animation-delay: 0.2s; }
   .dot-flashing span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+  @keyframes dotBlink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+  /* ── Controls ─────────────────────────────────────────────────────────────── */
   .controls {
     width: 100%;
     padding: 12px 14px;
@@ -151,6 +422,7 @@
     background: #080810;
     flex-shrink: 0;
   }
+
   .mic-ring {
     position: relative;
     width: 90px; height: 90px;
@@ -170,6 +442,7 @@
     animation: ringPulse 1s infinite;
   }
   @keyframes ringPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
   #micBtn {
     width: 90px; height: 90px;
     border-radius: 50%;
@@ -187,6 +460,7 @@
   #micBtn:active { transform: scale(0.93); }
   #micBtn.recording { background: linear-gradient(135deg, #5c1a1a, #3a0d0d); color: #ef5350; }
   #micBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .hint {
     font-size: 12px;
     color: #3a5080;
@@ -194,6 +468,7 @@
     text-transform: uppercase;
     text-align: center;
   }
+
   .text-input-row {
     width: 100%;
     display: flex;
@@ -206,7 +481,7 @@
     border: 1px solid #1e3a5f;
     border-radius: 10px;
     padding: 10px 14px;
-    font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
+    font-size: 16px;
     outline: none;
     -webkit-appearance: none;
     min-height: 44px;
@@ -229,33 +504,8 @@
     color: #2a4060;
     text-align: center;
   }
-  .voice-selector {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .voice-selector label {
-    font-size: 11px;
-    color: #3a5080;
-    white-space: nowrap;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .voice-selector select {
-    flex: 1;
-    background: #0d1a2e;
-    color: #8ab4d8;
-    border: 1px solid #1e3a5f;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 14px; /* min 16px prevents iOS zoom, but 14px ok for selects */
-    appearance: none;
-    -webkit-appearance: none;
-    outline: none;
-    min-height: 38px;
-  }
-  /* ── Splash Screen ─────────────────────────────────────────────────── */
+
+  /* ── Splash Screen ────────────────────────────────────────────────────────── */
   #splash {
     position: fixed;
     inset: 0;
@@ -293,12 +543,10 @@
     position: relative;
     overflow: hidden;
   }
-  /* Holographic globe SVG styling */
   .splash-ring svg {
     width: 120px; height: 120px;
     filter: drop-shadow(0 0 12px #4fc3f7aa);
   }
-  /* Rotating shine overlay */
   .splash-ring::after {
     content: '';
     position: absolute;
@@ -356,7 +604,64 @@
   <div class="splash-hint" id="splashHint">Loading voice...</div>
 </div>
 
+<!-- Drawer Overlay -->
+<div id="drawerOverlay"></div>
+
+<!-- Side Drawer -->
+<div id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">J.A.R.V.I.S</div>
+    <button class="drawer-close" id="drawerClose">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody">
+
+    <!-- SESSIONS section -->
+    <div class="drawer-section-header">SESSIONS</div>
+    <button class="new-session-btn" id="newSessionBtn">＋ New Session</button>
+    <ul class="session-list" id="sessionList"></ul>
+
+    <div class="drawer-divider"></div>
+
+    <!-- ADMIN section -->
+    <div class="drawer-section-header">ADMIN</div>
+
+    <!-- Voice -->
+    <div class="admin-row">
+      <span class="admin-label">VOICE</span>
+      <select class="admin-select" id="voiceSelect">
+        <option value="wDsJlOXPqcvIUKdLXjDs">Jarvis</option>
+        <option value="NYC9WEgkq1u4jiqBseQ9" selected>Russell (default)</option>
+        <option value="bfGb7JTLUnZebZRiFYyq">Voice 2</option>
+      </select>
+    </div>
+
+    <!-- Theme -->
+    <div class="admin-row">
+      <span class="admin-label">THEME</span>
+      <div class="theme-btns">
+        <button class="theme-btn active" id="themeDarkBtn">Dark</button>
+        <button class="theme-btn" id="themeDimBtn">Dim</button>
+      </div>
+    </div>
+
+    <!-- Clear Session -->
+    <div class="admin-row">
+      <span class="admin-label">CLEAR SESSION</span>
+      <button class="clear-session-btn" id="clearSessionBtn">Clear</button>
+    </div>
+
+    <!-- Version -->
+    <div class="admin-row">
+      <span class="admin-label">VERSION</span>
+      <span class="version-text">v1.1.0</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- Main layout -->
 <header>
+  <button class="hamburger-btn" id="hamburgerBtn">☰</button>
   <div class="logo">J.A.R.V.I.S</div>
   <div class="status-pill" id="statusPill">READY</div>
 </header>
@@ -369,20 +674,11 @@
 </div>
 
 <div class="controls">
-  <div class="voice-selector">
-    <label>VOICE</label>
-    <select id="voiceSelect">
-      <option value="wDsJlOXPqcvIUKdLXjDs">Jarvis</option>
-      <option value="NYC9WEgkq1u4jiqBseQ9" selected>Russell (default)</option>
-      <option value="bfGb7JTLUnZebZRiFYyq">Voice 2</option>
-    </select>
-  </div>
-
   <div style="display:flex;gap:16px;align-items:center;justify-content:center">
-  <button id="stopBtn" title="Stop" style="width:48px;height:48px;border-radius:50%;border:none;background:#1a0d0d;color:#ef5350;font-size:22px;cursor:pointer;opacity:0.3;transition:all 0.2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation" disabled>⏹</button>
-  <div class="mic-ring" id="micRing">
-    <button id="micBtn" title="Tap to speak">🎤</button>
-  </div>
+    <button id="stopBtn" title="Stop" style="width:48px;height:48px;border-radius:50%;border:none;background:#1a0d0d;color:#ef5350;font-size:22px;cursor:pointer;opacity:0.3;transition:all 0.2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation" disabled>⏹</button>
+    <div class="mic-ring" id="micRing">
+      <button id="micBtn" title="Tap to speak">🎤</button>
+    </div>
   </div>
   <div class="hint" id="hintText">tap to speak</div>
 
@@ -394,19 +690,32 @@
 </div>
 
 <script>
-const chatArea   = document.getElementById('chatArea');
-const micBtn     = document.getElementById('micBtn');
-const micRing    = document.getElementById('micRing');
-const hintText   = document.getElementById('hintText');
-const textInput  = document.getElementById('textInput');
-const sendBtn    = document.getElementById('sendBtn');
-const statusPill = document.getElementById('statusPill');
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const chatArea    = document.getElementById('chatArea');
+const micBtn      = document.getElementById('micBtn');
+const micRing     = document.getElementById('micRing');
+const hintText    = document.getElementById('hintText');
+const textInput   = document.getElementById('textInput');
+const sendBtn     = document.getElementById('sendBtn');
+const statusPill  = document.getElementById('statusPill');
 const voiceNote   = document.getElementById('voiceNote');
 const voiceSelect = document.getElementById('voiceSelect');
 const stopBtn     = document.getElementById('stopBtn');
 
+// Drawer refs
+const hamburgerBtn  = document.getElementById('hamburgerBtn');
+const drawer        = document.getElementById('drawer');
+const drawerOverlay = document.getElementById('drawerOverlay');
+const drawerClose   = document.getElementById('drawerClose');
+const newSessionBtn = document.getElementById('newSessionBtn');
+const sessionList   = document.getElementById('sessionList');
+const clearSessionBtn = document.getElementById('clearSessionBtn');
+const themeDarkBtn  = document.getElementById('themeDarkBtn');
+const themeDimBtn   = document.getElementById('themeDimBtn');
+
 let abortController = null;
 
+// ── Stop button ───────────────────────────────────────────────────────────────
 function enableStop() {
   stopBtn.disabled = false;
   stopBtn.style.opacity = '1';
@@ -417,12 +726,9 @@ function disableStop() {
 }
 
 stopBtn.addEventListener('click', () => {
-  // Stop audio
-  if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+  if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ''; }
   if (window.speechSynthesis) speechSynthesis.cancel();
-  // Abort in-flight fetch
   if (abortController) { abortController.abort(); abortController = null; }
-  // Stop recording
   if (isRecording) {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     stopRecording();
@@ -433,24 +739,21 @@ stopBtn.addEventListener('click', () => {
   addMessage('error', 'Stopped.');
 });
 
-let isRecording = false;
+// ── Recording state ───────────────────────────────────────────────────────────
+let isRecording   = false;
 let mediaRecorder = null;
-let audioChunks = [];
+let audioChunks   = [];
 let audioUnlocked = false;
-let audioQueue = [];
+let audioQueue    = [];
 
-// Single persistent <audio> element — created once, reused forever.
-// Must be .play()'d inside a gesture at least once to unlock autoplay.
+// ── Single persistent <audio> element ────────────────────────────────────────
 const _audioEl = document.createElement('audio');
 _audioEl.preload = 'auto';
 document.body.appendChild(_audioEl);
 
 // ── Audio Unlock ──────────────────────────────────────────────────────────────
-// Call inside a user gesture to unlock the audio element.
-// Returns a Promise that resolves when ready to play.
 function unlockAudio() {
   if (audioUnlocked) return Promise.resolve();
-  // Play a silent data URI to unlock autoplay policy
   _audioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
   return _audioEl.play().then(() => {
     audioUnlocked = true;
@@ -461,16 +764,250 @@ function unlockAudio() {
       playBase64Audio(next);
     }
   }).catch(() => {
-    audioUnlocked = true; // best effort
+    audioUnlocked = true;
   });
 }
 document.addEventListener('touchstart', () => unlockAudio(), { once: true });
-document.addEventListener('click', () => unlockAudio(), { once: true });
+document.addEventListener('click',      () => unlockAudio(), { once: true });
 
-// ── Startup greeting ───────────────────────────────────────────────────
+// ── Session Storage ───────────────────────────────────────────────────────────
+const SESSION_KEY     = 'jarvis_sessions';
+const MAX_SESSIONS    = 50;
+const MAX_MSG_PER_SES = 200;
 
+let sessions = [];
+let currentSessionId = null;
+let loadingSession = false; // suppress scroll animation during restore
 
-// ── Load ElevenLabs voices ───────────────────────────────────────────────────
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function saveSessions() {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessions)); } catch(e) {}
+}
+
+function loadSessions() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (raw) sessions = JSON.parse(raw);
+  } catch(e) { sessions = []; }
+  if (!sessions.length) {
+    sessions.push(createSessionObj('Session 1'));
+    saveSessions();
+  }
+  currentSessionId = sessions[sessions.length - 1].id;
+}
+
+function createSessionObj(name) {
+  return { id: genId(), name, createdAt: Date.now(), messages: [] };
+}
+
+function currentSession() {
+  return sessions.find(s => s.id === currentSessionId) || sessions[0];
+}
+
+function addNewSession() {
+  const name = 'Session ' + (sessions.length + 1);
+  const sess = createSessionObj(name);
+  sessions.push(sess);
+  // Prune oldest if over limit
+  while (sessions.length > MAX_SESSIONS) sessions.shift();
+  saveSessions();
+  switchSession(sess.id);
+  renderSessionList();
+}
+
+function switchSession(id) {
+  currentSessionId = id;
+  renderSessionList();
+  repopulateChatFromSession();
+}
+
+function deleteSession(id) {
+  if (sessions.length <= 1) return;
+  const idx = sessions.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  sessions.splice(idx, 1);
+  // If we deleted the current session, switch to last
+  if (id === currentSessionId) {
+    currentSessionId = sessions[sessions.length - 1].id;
+  }
+  saveSessions();
+  renderSessionList();
+  if (id === currentSessionId || sessions.findIndex(s => s.id === currentSessionId) === -1) {
+    repopulateChatFromSession();
+  }
+}
+
+function saveMessageToSession(role, text) {
+  const sess = currentSession();
+  if (!sess) return;
+  sess.messages.push({ role, text, ts: Date.now() });
+  // Trim oldest messages if over limit
+  while (sess.messages.length > MAX_MSG_PER_SES) sess.messages.shift();
+  saveSessions();
+}
+
+function formatSessionDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ── Render Session List ───────────────────────────────────────────────────────
+function renderSessionList() {
+  sessionList.innerHTML = '';
+  // Render newest first
+  const ordered = [...sessions].reverse();
+  ordered.forEach(sess => {
+    const li = document.createElement('li');
+    li.className = 'session-row' + (sess.id === currentSessionId ? ' active' : '');
+    li.dataset.id = sess.id;
+
+    const left = document.createElement('div');
+    left.className = 'session-row-left';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'session-name';
+    nameEl.textContent = sess.name;
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'session-date';
+    dateEl.textContent = formatSessionDate(sess.createdAt);
+
+    left.appendChild(nameEl);
+    left.appendChild(dateEl);
+
+    const right = document.createElement('div');
+    right.style.display = 'flex';
+    right.style.alignItems = 'center';
+    right.style.gap = '4px';
+
+    if (sessions.length > 1) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'session-delete-btn';
+      delBtn.textContent = '🗑';
+      delBtn.title = 'Delete session';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteSession(sess.id);
+      });
+      right.appendChild(delBtn);
+    }
+
+    li.appendChild(left);
+    li.appendChild(right);
+
+    // Tap to switch
+    li.addEventListener('click', () => {
+      if (sess.id !== currentSessionId) {
+        switchSession(sess.id);
+        closeDrawer();
+      }
+    });
+
+    // Long-press to rename (500ms)
+    let pressTimer = null;
+    const startPress = () => {
+      pressTimer = setTimeout(() => {
+        showRenameInput(li, nameEl, sess);
+      }, 500);
+    };
+    const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+    li.addEventListener('touchstart', startPress, { passive: true });
+    li.addEventListener('touchend',   cancelPress);
+    li.addEventListener('touchmove',  cancelPress, { passive: true });
+    li.addEventListener('mousedown',  startPress);
+    li.addEventListener('mouseup',    cancelPress);
+    li.addEventListener('mouseleave', cancelPress);
+
+    sessionList.appendChild(li);
+  });
+}
+
+function showRenameInput(li, nameEl, sess) {
+  const input = document.createElement('input');
+  input.className = 'session-rename-input';
+  input.value = sess.name;
+  input.maxLength = 40;
+
+  const left = li.querySelector('.session-row-left');
+  left.replaceChild(input, nameEl);
+  input.focus();
+  input.select();
+
+  const finish = () => {
+    const val = input.value.trim();
+    if (val) sess.name = val;
+    saveSessions();
+    renderSessionList();
+  };
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = sess.name; input.blur(); }
+  });
+}
+
+// ── Repopulate chat from session ──────────────────────────────────────────────
+function repopulateChatFromSession() {
+  chatArea.innerHTML = '';
+  const sess = currentSession();
+  if (!sess || !sess.messages.length) {
+    // Default welcome
+    const div = document.createElement('div');
+    div.className = 'message jarvis';
+    div.innerHTML = '<div class="speaker">JARVIS</div>Online and ready. Tap the microphone or type below.';
+    chatArea.appendChild(div);
+    return;
+  }
+  loadingSession = true;
+  sess.messages.forEach(msg => {
+    addMessage(msg.role, msg.text, null, true);
+  });
+  loadingSession = false;
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// ── Drawer open/close ─────────────────────────────────────────────────────────
+function openDrawer() {
+  renderSessionList();
+  drawer.classList.add('open');
+  drawerOverlay.classList.add('open');
+}
+function closeDrawer() {
+  drawer.classList.remove('open');
+  drawerOverlay.classList.remove('open');
+}
+
+hamburgerBtn.addEventListener('click', openDrawer);
+drawerClose.addEventListener('click', closeDrawer);
+drawerOverlay.addEventListener('click', closeDrawer);
+newSessionBtn.addEventListener('click', () => { addNewSession(); closeDrawer(); });
+
+// ── Clear current session ─────────────────────────────────────────────────────
+clearSessionBtn.addEventListener('click', () => {
+  const sess = currentSession();
+  if (!sess) return;
+  sess.messages = [];
+  saveSessions();
+  repopulateChatFromSession();
+  closeDrawer();
+});
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+themeDarkBtn.addEventListener('click', () => {
+  document.body.classList.remove('theme-dim');
+  themeDarkBtn.classList.add('active');
+  themeDimBtn.classList.remove('active');
+});
+themeDimBtn.addEventListener('click', () => {
+  document.body.classList.add('theme-dim');
+  themeDimBtn.classList.add('active');
+  themeDarkBtn.classList.remove('active');
+});
+
+// ── Load ElevenLabs voices ────────────────────────────────────────────────────
 async function loadVoices() {
   try {
     const resp = await fetch('/voices');
@@ -486,12 +1023,12 @@ async function loadVoices() {
     });
   } catch(e) { /* keep default */ }
 }
+
 // ── Splash + Greeting ─────────────────────────────────────────────────────────
 const splash = document.getElementById('splash');
 let greetingAudioB64 = null;
-let greetingPlayed = false;
+let greetingPlayed   = false;
 
-// Pre-fetch greeting audio immediately in background
 async function prefetchGreeting() {
   const hint = document.getElementById('splashHint');
   try {
@@ -531,20 +1068,13 @@ function playGreetingOnce() {
 
 // Splash tap: unlock audio, play greeting, dismiss
 splash.addEventListener('click', async () => {
-  // Step 1: unlock audio — await so AudioContext is running before we play
   await unlockAudio();
-
-  // Step 2: dismiss splash
   splash.classList.add('hidden');
   setTimeout(() => splash.style.display = 'none', 400);
-
-  // Step 3: play greeting (AudioContext is now running)
   greetingPlayed = true;
   if (greetingAudioB64) {
-    // Already fetched — play instantly
     playBase64Audio(greetingAudioB64);
   } else {
-    // Fetch now and play (still within resumed AudioContext — no new gesture needed)
     try {
       const vid = voiceSelect.value || 'NYC9WEgkq1u4jiqBseQ9';
       const r = await fetch('/tts', {
@@ -561,7 +1091,10 @@ splash.addEventListener('click', async () => {
   }
 });
 
-// Update splash hint when greeting is ready
+// Init: load sessions, voices, then pre-fetch greeting
+loadSessions();
+repopulateChatFromSession();
+
 loadVoices().then(() => {
   prefetchGreeting().then(() => {
     const hint = document.querySelector('.splash-hint');
@@ -570,8 +1103,6 @@ loadVoices().then(() => {
 });
 
 // ── Detect mic method ─────────────────────────────────────────────────────────
-// Always use MediaRecorder + server STT — works on Chrome/Firefox/Safari with HTTPS
-// Web Speech API is unreliable across browsers; skip it
 const hasMediaRecorder = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
 if (hasMediaRecorder) {
@@ -582,14 +1113,10 @@ if (hasMediaRecorder) {
   micBtn.title = 'Voice not supported';
 }
 
-// Ensure AudioContext is created+resumed on any user interaction
 document.addEventListener('touchstart', () => { unlockAudio(); }, { passive: true });
-document.addEventListener('mousedown', () => { unlockAudio(); }, { passive: true });
+document.addEventListener('mousedown',  () => { unlockAudio(); }, { passive: true });
 
-
-
-
-
+// ── Transcribe and send ───────────────────────────────────────────────────────
 async function transcribeAndSend(blob) {
   setStatus('TRANSCRIBING');
   hintText.textContent = 'transcribing…';
@@ -599,10 +1126,9 @@ async function transcribeAndSend(blob) {
     const resp = await fetch('/transcribe', { method: 'POST', body: formData });
     const data = await resp.json();
     if (data.text && data.text.trim()) {
-      // Stop any playing audio before sending (clears processing TTS)
-      if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+      if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ''; }
       if (window.speechSynthesis) speechSynthesis.cancel();
-      audioUnlocked = true; // ensure unlock is set before sendMessage fires TTS
+      audioUnlocked = true;
       sendMessage(data.text.trim());
     } else {
       addMessage('error', 'Could not understand audio. Please try again.');
@@ -615,7 +1141,7 @@ async function transcribeAndSend(blob) {
   hintText.textContent = 'tap to speak';
 }
 
-// ── Unified stop ─────────────────────────────────────────────────────────────
+// ── Stop recording helper ─────────────────────────────────────────────────────
 function stopRecording() {
   isRecording = false;
   micBtn.classList.remove('recording');
@@ -627,16 +1153,15 @@ function stopRecording() {
 // ── Mic button ────────────────────────────────────────────────────────────────
 micBtn.addEventListener('click', () => {
   unlockAudio();
-  audioUnlocked = true; // mic tap is a direct user gesture — force-unlock immediately
-  playGreetingOnce(); // plays greeting on very first tap
-  // Stop if already recording
+  audioUnlocked = true;
+  playGreetingOnce();
   if (isRecording) {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     stopRecording();
     return;
   }
 
-  if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+  if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ''; }
   setStatus('REQUESTING MIC...');
   hintText.textContent = 'requesting mic...';
 
@@ -674,7 +1199,7 @@ micBtn.addEventListener('click', () => {
     });
 });
 
-// ── Send message to Hermes ────────────────────────────────────────────────────
+// ── Streaming send ────────────────────────────────────────────────────────────
 const THOUGHTS = [
   'Get a cup of tea.',
   'Stretch your legs for a moment.',
@@ -688,15 +1213,14 @@ const THOUGHTS = [
   'Consider blinking. Humans forget sometimes.',
 ];
 
-// ── Streaming send — tokens appear as they arrive, then audio plays ────────
 async function sendMessage(text) {
   if (!text.trim()) return;
   addMessage('user', text);
+  saveMessageToSession('user', text);
   const thinking = addThinking();
   setStatus('THINKING');
   enableStop();
 
-  // Processing TTS — only plays if model takes >2s (fires in background)
   const thought = THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
   const processingText = `Processing your request, sir. This may take a few moments. ${thought}`;
   let processingAudioPlayed = false;
@@ -708,13 +1232,13 @@ async function sendMessage(text) {
     }).then(r => r.json()).then(d => {
       if (d.audio && !streamingStarted) { processingAudioPlayed = true; playBase64Audio(d.audio); }
     }).catch(() => {});
-  }, 2000); // only fire if no tokens in 2s
+  }, 2000);
 
   abortController = new AbortController();
   const startTime = Date.now();
   let streamingStarted = false;
-  let streamDiv = null;      // the live message bubble
-  let rawAccum = '';         // accumulated raw text for final formatMarkdown
+  let streamDiv = null;
+  let rawAccum  = '';
   let fullReply = '';
 
   try {
@@ -730,7 +1254,7 @@ async function sendMessage(text) {
       throw new Error(err.detail || `HTTP ${resp.status}`);
     }
 
-    const reader = resp.body.getReader();
+    const reader  = resp.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
 
@@ -739,9 +1263,8 @@ async function sendMessage(text) {
       if (done) break;
       buf += decoder.decode(value, { stream: true });
 
-      // Parse SSE events from buffer
       const parts = buf.split('\n\n');
-      buf = parts.pop(); // keep incomplete last chunk
+      buf = parts.pop();
 
       for (const part of parts) {
         const lines = part.split('\n');
@@ -756,12 +1279,17 @@ async function sendMessage(text) {
         try { parsed = JSON.parse(evtData); } catch { continue; }
 
         if (evtType === 'progress') {
-          // Tool activity — show in thinking bubble while waiting for tokens
           if (!streamingStarted && thinking) {
             const dot = thinking.querySelector('.dot-flashing');
             if (dot) {
               const ptext = thinking.querySelector('.progress-text') ||
-                (() => { const s = document.createElement('span'); s.className='progress-text'; s.style.cssText='font-size:11px;color:#4fc3f7;margin-right:6px'; dot.parentNode.insertBefore(s, dot); return s; })();
+                (() => {
+                  const s = document.createElement('span');
+                  s.className = 'progress-text';
+                  s.style.cssText = 'font-size:11px;color:#4fc3f7;margin-right:6px';
+                  dot.parentNode.insertBefore(s, dot);
+                  return s;
+                })();
               ptext.textContent = parsed.text || '';
             }
           }
@@ -770,9 +1298,7 @@ async function sendMessage(text) {
           if (!streamingStarted) {
             streamingStarted = true;
             thinking.remove();
-            // Stop processing TTS if it started
-            if (processingAudioPlayed && !_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
-            // Create streaming bubble
+            if (processingAudioPlayed && !_audioEl.paused) { _audioEl.pause(); _audioEl.src = ''; }
             streamDiv = document.createElement('div');
             streamDiv.className = 'message jarvis';
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
@@ -781,16 +1307,14 @@ async function sendMessage(text) {
             chatArea.scrollTop = chatArea.scrollHeight;
             setStatus('STREAMING');
           }
-          rawAccum += parsed.token;
+          rawAccum  += parsed.token;
           fullReply += parsed.token;
-          // Update bubble with formatted content as lines arrive
           const contentEl = streamDiv.querySelector('.stream-content');
           if (contentEl) {
             contentEl.innerHTML = formatMarkdown(rawAccum);
             chatArea.scrollTop = chatArea.scrollHeight;
           }
         } else if (evtType === 'done') {
-          // Text complete — do final render
           fullReply = parsed.reply || fullReply;
           if (streamDiv) {
             const contentEl = streamDiv.querySelector('.stream-content');
@@ -798,15 +1322,16 @@ async function sendMessage(text) {
             streamDiv.querySelector('.speaker').innerHTML =
               `JARVIS <span style="font-size:10px;opacity:0.5">${elapsed}</span>`;
             if (contentEl) {
-            contentEl.innerHTML = formatMarkdown(fullReply);
-            contentEl.classList.add('done'); // stop blinking cursor
+              contentEl.innerHTML = formatMarkdown(fullReply);
+              contentEl.classList.add('done');
+            }
           }
-          }
-          setStatus('THINKING'); // waiting for TTS
+          // Save Jarvis reply to session
+          saveMessageToSession('jarvis', fullReply);
+          setStatus('THINKING');
         } else if (evtType === 'audio') {
-          // Audio ready — play it
           if (parsed.audio) {
-            if (processingAudioPlayed && !_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+            if (processingAudioPlayed && !_audioEl.paused) { _audioEl.pause(); _audioEl.src = ''; }
             playBase64Audio(parsed.audio);
             setStatus('SPEAKING');
           } else {
@@ -822,7 +1347,6 @@ async function sendMessage(text) {
       }
     }
 
-    // Stream ended without audio event — ensure we're in a clean state
     if (!streamingStarted) {
       thinking.remove();
       addMessage('error', 'No response received.');
@@ -842,20 +1366,19 @@ async function sendMessage(text) {
   }
 }
 
-// ── Audio ─────────────────────────────────────────────────────────────────────
+// ── Audio playback ────────────────────────────────────────────────────────────
 function playBase64Audio(b64) {
   if (!audioUnlocked) {
-    audioQueue = [b64]; // queue — drained after first gesture unlocks
+    audioQueue = [b64];
     return;
   }
-  // Stop current playback
   if (!_audioEl.paused) { _audioEl.pause(); }
   _audioEl.onended = null;
   _audioEl.onerror = null;
 
   const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  const blob = new Blob([bytes], { type: 'audio/mpeg' });
-  const url = URL.createObjectURL(blob);
+  const blob  = new Blob([bytes], { type: 'audio/mpeg' });
+  const url   = URL.createObjectURL(blob);
   _audioEl.src = url;
   _audioEl.onended = () => { setStatus('READY'); disableStop(); URL.revokeObjectURL(url); };
   _audioEl.onerror = () => { setStatus('READY'); disableStop(); URL.revokeObjectURL(url); };
@@ -879,7 +1402,6 @@ function browserTTS(text) {
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function setStatus(s) {
   statusPill.textContent = s;
-  // Colour-code the pill by state
   const colours = {
     'READY':        { bg: '#0d2040', border: '#1e3a5f', color: '#4fc3f7' },
     'THINKING':     { bg: '#1a1a00', border: '#3a3a00', color: '#ffd700' },
@@ -889,12 +1411,12 @@ function setStatus(s) {
     'RECORDING':    { bg: '#1a0000', border: '#3a0000', color: '#ef5350' },
   };
   const c = colours[s] || colours['READY'];
-  statusPill.style.background = c.bg;
+  statusPill.style.background  = c.bg;
   statusPill.style.borderColor = c.border;
-  statusPill.style.color = c.color;
+  statusPill.style.color       = c.color;
 }
 
-function addMessage(role, text, elapsed) {
+function addMessage(role, text, elapsed, suppressScroll) {
   const div = document.createElement('div');
   div.className = `message ${role}`;
   if (role === 'jarvis') {
@@ -905,8 +1427,14 @@ function addMessage(role, text, elapsed) {
   } else {
     div.textContent = text;
   }
+  // When loading a session, suppress the fadeIn animation
+  if (suppressScroll || loadingSession) {
+    div.style.animation = 'none';
+  }
   chatArea.appendChild(div);
-  chatArea.scrollTop = chatArea.scrollHeight;
+  if (!suppressScroll && !loadingSession) {
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
   return div;
 }
 
@@ -928,35 +1456,44 @@ function addThinking() {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function clean_for_speech(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, ' code block ')
+    .replace(/`[^`]+`/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/#+\s/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[\-\*•]\s/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function formatMarkdown(text) {
-  // ── Unescape literal \n and \t sequences from JSON/escaped strings ────────
-  // Some backends return literal backslash-n instead of real newlines
+  // Unescape literal \n and \t
   text = text.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
 
-  // ── Tables ────────────────────────────────────────────────────────────────
-  // Detect and convert markdown tables before other processing
+  // Tables
   function renderTables(raw) {
     const lines = raw.split('\n');
     let out = [];
     let i = 0;
     while (i < lines.length) {
-      // A table starts with a pipe-delimited header row followed by a separator row
       if (
         i + 1 < lines.length &&
         /^\|.+\|/.test(lines[i]) &&
         /^\|[\s:\-|]+\|/.test(lines[i + 1])
       ) {
         const headers = lines[i].split('|').map(h => h.trim()).filter(Boolean);
-        i += 2; // skip header + separator
+        i += 2;
         let rows = [];
         while (i < lines.length && /^\|.+\|/.test(lines[i])) {
           rows.push(lines[i].split('|').map(c => c.trim()).filter(Boolean));
           i++;
         }
-        // Build HTML table
         let tbl = '<div style="overflow-x:auto;margin:8px 0">';
         tbl += '<table style="border-collapse:collapse;width:100%;font-size:13px">';
         tbl += '<thead><tr>';
@@ -982,7 +1519,7 @@ function formatMarkdown(text) {
     return out.join('\n');
   }
 
-  // ── Code blocks (preserve before escaping) ────────────────────────────────
+  // Code blocks — preserve before escaping
   const codeBlocks = [];
   text = text.replace(/```([\s\S]*?)```/g, (_, code) => {
     const idx = codeBlocks.length;
@@ -990,37 +1527,26 @@ function formatMarkdown(text) {
     return `%%CODE_BLOCK_${idx}%%`;
   });
 
-  // Render tables on raw text (before HTML escaping)
   text = renderTables(text);
 
-  // Escape HTML in non-table, non-code parts
-  // Split on table HTML we already generated, escape the rest
   const parts = text.split(/(%%CODE_BLOCK_\d+%%|<div style="overflow-x[\s\S]*?<\/div>)/);
-  text = parts.map((p, pi) => {
+  text = parts.map(p => {
     if (p.startsWith('%%CODE_BLOCK_')) {
       const idx = parseInt(p.match(/\d+/)[0]);
       return `<pre style="background:#0a1628;padding:8px 12px;border-radius:6px;overflow-x:auto;margin:6px 0;font-size:12px;color:#7dd3fc;border-left:3px solid #1e3a5f"><code>${escHtml(codeBlocks[idx])}</code></pre>`;
     }
-    if (p.startsWith('<div style="overflow-x')) return p; // already HTML
+    if (p.startsWith('<div style="overflow-x')) return p;
     let s = escHtml(p);
-    // Bold **text**
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Italic *text* (but not inside words)
     s = s.replace(/(^|\s)\*([^*\n]+?)\*($|\s)/g, '$1<em>$2</em>$3');
-    // Headers ### ## #
     s = s.replace(/^### (.+)$/gm, '<div style="font-size:13px;color:#4fc3f7;letter-spacing:1px;text-transform:uppercase;margin:10px 0 4px">$1</div>');
-    s = s.replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:#7dd3fc;margin:12px 0 4px">$1</div>');
-    s = s.replace(/^# (.+)$/gm, '<div style="font-size:17px;font-weight:700;color:#93c5fd;margin:14px 0 6px">$1</div>');
-    // Bullet points (including indented sub-bullets)
+    s = s.replace(/^## (.+)$/gm,  '<div style="font-size:15px;font-weight:700;color:#7dd3fc;margin:12px 0 4px">$1</div>');
+    s = s.replace(/^# (.+)$/gm,   '<div style="font-size:17px;font-weight:700;color:#93c5fd;margin:14px 0 6px">$1</div>');
     s = s.replace(/^([ \t]+)[\-\*•] (.+)$/gm, '<div style="padding:2px 0 2px 24px;border-left:2px solid #0f2a45;color:#94a3b8">$2</div>');
     s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="padding:2px 0 2px 12px;border-left:2px solid #1e3a5f">$1</div>');
-    // Numbered list
     s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="padding:2px 0"><span style="color:#4fc3f7;font-weight:600">$1.</span> $2</div>');
-    // Inline code `text`
     s = s.replace(/`([^`]+)`/g, '<code style="background:#0a1628;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#7dd3fc">$1</code>');
-    // Horizontal rule ---
     s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #1e3a5f;margin:8px 0">');
-    // Line breaks
     s = s.replace(/\n\n/g, '<br><br>');
     s = s.replace(/\n/g, '<br>');
     return s;
@@ -1029,17 +1555,17 @@ function formatMarkdown(text) {
 }
 
 // ── Text input ────────────────────────────────────────────────────────────────
-sendBtn.addEventListener("click", async () => {
+sendBtn.addEventListener('click', async () => {
   await unlockAudio();
   playGreetingOnce();
-  sendMessage(textInput.value);
-  textInput.value = '';
+  const t = textInput.value.trim();
+  if (t) { sendMessage(t); textInput.value = ''; }
 });
 textInput.addEventListener('keydown', async e => {
-  if (e.key === "Enter") {
+  if (e.key === 'Enter') {
     await unlockAudio();
-    sendMessage(textInput.value);
-    textInput.value = "";
+    const t = textInput.value.trim();
+    if (t) { sendMessage(t); textInput.value = ''; }
   }
 });
 </script>
