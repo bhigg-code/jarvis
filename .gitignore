@@ -1,0 +1,12 @@
+.env
+*.log
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+ssl/
+*.pem
+*.key
+*.crt
+.DS_Store

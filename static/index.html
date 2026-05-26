@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>Jarvis</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden; /* prevent body scroll — only chat area scrolls */
+  }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e8ff;
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh; /* dynamic viewport height — accounts for iOS browser chrome */
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  header {
+    width: 100%;
+    padding: 14px 20px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1a2040;
+    flex-shrink: 0;
+  }
+  .logo {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #4fc3f7;
+    text-shadow: 0 0 20px #4fc3f755;
+  }
+  .status-pill {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #0d2040;
+    border: 1px solid #1e3a5f;
+    color: #4fc3f7;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    transition: background 0.3s, color 0.3s, border-color 0.3s;
+  }
+  /* Blinking cursor shown at end of streaming content */
+  .stream-content::after {
+    content: '█';
+    animation: blink 0.8s step-end infinite;
+    color: #00e676;
+    font-size: 13px;
+    margin-left: 2px;
+  }
+  .stream-content.done::after { content: ''; animation: none; }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+  .chat-area {
+    flex: 1;
+    width: 100%;
+    padding: 16px 14px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    /* Prevent content hiding behind keyboard on iOS */
+    overscroll-behavior: contain;
+  }
+  .message {
+    max-width: 92%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.55;
+    animation: fadeIn 0.3s ease;
+    word-break: break-word;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .message.user {
+    align-self: flex-end;
+    background: #1a3060;
+    border-bottom-right-radius: 4px;
+    color: #c5d8ff;
+  }
+  .message.jarvis {
+    align-self: flex-start;
+    background: #0d1a2e;
+    border: 1px solid #1e3a5f;
+    border-bottom-left-radius: 4px;
+  }
+  .message.jarvis .speaker {
+    font-size: 11px;
+    color: #4fc3f7;
+    letter-spacing: 2px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .message.error {
+    align-self: flex-start;
+    background: #2a0d0d;
+    border: 1px solid #5c1a1a;
+    color: #ef9a9a;
+    font-size: 13px;
+  }
+  .thinking {
+    align-self: flex-start;
+    color: #4fc3f7;
+    font-size: 13px;
+    opacity: 0.7;
+    padding: 8px 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot-flashing { display: flex; gap: 4px; }
+  .dot-flashing span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4fc3f7;
+    animation: blink 1.2s infinite;
+  }
+  .dot-flashing span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-flashing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+  .controls {
+    width: 100%;
+    padding: 12px 14px;
+    padding-bottom: calc(12px + var(--safe-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #1a2040;
+    background: #080810;
+    flex-shrink: 0;
+  }
+  .mic-ring {
+    position: relative;
+    width: 90px; height: 90px;
+  }
+  .mic-ring::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid #4fc3f733;
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .mic-ring.recording::before {
+    border-color: #ef5350;
+    box-shadow: 0 0 20px #ef535055;
+    animation: ringPulse 1s infinite;
+  }
+  @keyframes ringPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  #micBtn {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #1a3a6e, #0d2040);
+    color: #4fc3f7;
+    font-size: 32px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px #00000088, inset 0 1px 0 #ffffff11;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  #micBtn:active { transform: scale(0.93); }
+  #micBtn.recording { background: linear-gradient(135deg, #5c1a1a, #3a0d0d); color: #ef5350; }
+  #micBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .hint {
+    font-size: 12px;
+    color: #3a5080;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .text-input-row {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+  #textInput {
+    flex: 1;
+    background: #0d1a2e;
+    color: #c5d8ff;
+    border: 1px solid #1e3a5f;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
+    outline: none;
+    -webkit-appearance: none;
+    min-height: 44px;
+  }
+  #textInput::placeholder { color: #2a4060; }
+  #sendBtn {
+    background: #1a3060;
+    color: #4fc3f7;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 20px;
+    cursor: pointer;
+    touch-action: manipulation;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .voice-note {
+    font-size: 11px;
+    color: #2a4060;
+    text-align: center;
+  }
+  .voice-selector {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .voice-selector label {
+    font-size: 11px;
+    color: #3a5080;
+    white-space: nowrap;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .voice-selector select {
+    flex: 1;
+    background: #0d1a2e;
+    color: #8ab4d8;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px; /* min 16px prevents iOS zoom, but 14px ok for selects */
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    min-height: 38px;
+  }
+  /* ── Splash Screen ─────────────────────────────────────────────────── */
+  #splash {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    z-index: 9999;
+    cursor: pointer;
+    transition: opacity 0.4s ease;
+  }
+  #splash.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .splash-logo {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 8px;
+    color: #4fc3f7;
+    text-shadow: 0 0 40px #4fc3f777;
+  }
+  .splash-ring {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    border: 2px solid #1e3a5f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: splashPulse 2s infinite;
+    background: radial-gradient(ellipse at 35% 35%, #1a4a7a, #0a1628, #020810);
+    box-shadow: 0 0 60px #4fc3f733, inset 0 0 40px #0a2040;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Holographic globe SVG styling */
+  .splash-ring svg {
+    width: 120px; height: 120px;
+    filter: drop-shadow(0 0 12px #4fc3f7aa);
+  }
+  /* Rotating shine overlay */
+  .splash-ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 60%, #4fc3f711 70%, transparent 80%);
+    animation: rotate 4s linear infinite;
+  }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  @keyframes splashPulse {
+    0%,100% { box-shadow: 0 0 30px #4fc3f722, inset 0 0 40px #0a2040; border-color: #1e3a5f; }
+    50% { box-shadow: 0 0 70px #4fc3f755, inset 0 0 40px #0a2040; border-color: #4fc3f7; }
+  }
+  .splash-hint {
+    font-size: 13px;
+    color: #3a5080;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<!-- Splash screen — tap to activate audio then dismiss -->
+<div id="splash">
+  <div class="splash-logo">J.A.R.V.I.S</div>
+  <div class="splash-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <!-- Globe base -->
+      <circle cx="50" cy="50" r="45" fill="none" stroke="#4fc3f7" stroke-width="1" opacity="0.6"/>
+      <circle cx="50" cy="50" r="45" fill="url(#globeGrad)" opacity="0.3"/>
+      <!-- Latitude lines -->
+      <ellipse cx="50" cy="50" rx="45" ry="15" fill="none" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+      <ellipse cx="50" cy="50" rx="45" ry="30" fill="none" stroke="#4fc3f7" stroke-width="0.8" opacity="0.4"/>
+      <line x1="5" y1="50" x2="95" y2="50" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+      <!-- Longitude lines -->
+      <ellipse cx="50" cy="50" rx="15" ry="45" fill="none" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+      <ellipse cx="50" cy="50" rx="30" ry="45" fill="none" stroke="#4fc3f7" stroke-width="0.8" opacity="0.4"/>
+      <line x1="50" y1="5" x2="50" y2="95" stroke="#4fc3f7" stroke-width="0.8" opacity="0.5"/>
+      <!-- Glow dots -->
+      <circle cx="50" cy="50" r="3" fill="#4fc3f7" opacity="0.9"/>
+      <circle cx="72" cy="35" r="2" fill="#7dd3fc" opacity="0.8"/>
+      <circle cx="28" cy="62" r="1.5" fill="#7dd3fc" opacity="0.7"/>
+      <circle cx="65" cy="68" r="1.5" fill="#93c5fd" opacity="0.6"/>
+      <!-- Orbit ring -->
+      <ellipse cx="50" cy="50" rx="45" ry="12" fill="none" stroke="#7dd3fc" stroke-width="1" opacity="0.3" transform="rotate(-30 50 50)"/>
+      <defs>
+        <radialGradient id="globeGrad" cx="35%" cy="35%">
+          <stop offset="0%" stop-color="#4fc3f7" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#0a1628" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+    </svg>
+  </div>
+  <div class="splash-hint" id="splashHint">Loading voice...</div>
+</div>
+
+<header>
+  <div class="logo">J.A.R.V.I.S</div>
+  <div class="status-pill" id="statusPill">READY</div>
+</header>
+
+<div class="chat-area" id="chatArea">
+  <div class="message jarvis">
+    <div class="speaker">JARVIS</div>
+    Online and ready. Tap the microphone or type below.
+  </div>
+</div>
+
+<div class="controls">
+  <div class="voice-selector">
+    <label>VOICE</label>
+    <select id="voiceSelect">
+      <option value="wDsJlOXPqcvIUKdLXjDs">Jarvis</option>
+      <option value="NYC9WEgkq1u4jiqBseQ9" selected>Russell (default)</option>
+      <option value="bfGb7JTLUnZebZRiFYyq">Voice 2</option>
+    </select>
+  </div>
+
+  <div style="display:flex;gap:16px;align-items:center;justify-content:center">
+  <button id="stopBtn" title="Stop" style="width:48px;height:48px;border-radius:50%;border:none;background:#1a0d0d;color:#ef5350;font-size:22px;cursor:pointer;opacity:0.3;transition:all 0.2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation" disabled>⏹</button>
+  <div class="mic-ring" id="micRing">
+    <button id="micBtn" title="Tap to speak">🎤</button>
+  </div>
+  </div>
+  <div class="hint" id="hintText">tap to speak</div>
+
+  <div class="text-input-row">
+    <input type="text" id="textInput" placeholder="Or type here…" autocomplete="off" autocorrect="off">
+    <button id="sendBtn">➤</button>
+  </div>
+  <div class="voice-note" id="voiceNote"></div>
+</div>
+
+<script>
+const chatArea   = document.getElementById('chatArea');
+const micBtn     = document.getElementById('micBtn');
+const micRing    = document.getElementById('micRing');
+const hintText   = document.getElementById('hintText');
+const textInput  = document.getElementById('textInput');
+const sendBtn    = document.getElementById('sendBtn');
+const statusPill = document.getElementById('statusPill');
+const voiceNote   = document.getElementById('voiceNote');
+const voiceSelect = document.getElementById('voiceSelect');
+const stopBtn     = document.getElementById('stopBtn');
+
+let abortController = null;
+
+function enableStop() {
+  stopBtn.disabled = false;
+  stopBtn.style.opacity = '1';
+}
+function disableStop() {
+  stopBtn.disabled = true;
+  stopBtn.style.opacity = '0.3';
+}
+
+stopBtn.addEventListener('click', () => {
+  // Stop audio
+  if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  // Abort in-flight fetch
+  if (abortController) { abortController.abort(); abortController = null; }
+  // Stop recording
+  if (isRecording) {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    stopRecording();
+  }
+  setStatus('READY');
+  hintText.textContent = 'tap to speak';
+  disableStop();
+  addMessage('error', 'Stopped.');
+});
+
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let audioUnlocked = false;
+let audioQueue = [];
+
+// Single persistent <audio> element — created once, reused forever.
+// Must be .play()'d inside a gesture at least once to unlock autoplay.
+const _audioEl = document.createElement('audio');
+_audioEl.preload = 'auto';
+document.body.appendChild(_audioEl);
+
+// ── Audio Unlock ──────────────────────────────────────────────────────────────
+// Call inside a user gesture to unlock the audio element.
+// Returns a Promise that resolves when ready to play.
+function unlockAudio() {
+  if (audioUnlocked) return Promise.resolve();
+  // Play a silent data URI to unlock autoplay policy
+  _audioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+  return _audioEl.play().then(() => {
+    audioUnlocked = true;
+    _audioEl.pause();
+    _audioEl.src = '';
+    if (audioQueue.length) {
+      const next = audioQueue.shift();
+      playBase64Audio(next);
+    }
+  }).catch(() => {
+    audioUnlocked = true; // best effort
+  });
+}
+document.addEventListener('touchstart', () => unlockAudio(), { once: true });
+document.addEventListener('click', () => unlockAudio(), { once: true });
+
+// ── Startup greeting ───────────────────────────────────────────────────
+
+
+// ── Load ElevenLabs voices ───────────────────────────────────────────────────
+async function loadVoices() {
+  try {
+    const resp = await fetch('/voices');
+    const voices = await resp.json();
+    if (!voices.length) return;
+    voiceSelect.innerHTML = '';
+    voices.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.name;
+      if (v.id === 'NYC9WEgkq1u4jiqBseQ9') opt.selected = true;
+      voiceSelect.appendChild(opt);
+    });
+  } catch(e) { /* keep default */ }
+}
+// ── Splash + Greeting ─────────────────────────────────────────────────────────
+const splash = document.getElementById('splash');
+let greetingAudioB64 = null;
+let greetingPlayed = false;
+
+// Pre-fetch greeting audio immediately in background
+async function prefetchGreeting() {
+  const hint = document.getElementById('splashHint');
+  try {
+    const vid = voiceSelect.value || 'NYC9WEgkq1u4jiqBseQ9';
+    const r = await fetch('/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Online and ready, sir. Tap the microphone or type below.',
+        voice_id: vid
+      })
+    });
+    const d = await r.json();
+    if (d.audio) {
+      greetingAudioB64 = d.audio;
+      if (hint && !greetingPlayed) hint.textContent = 'Tap to activate';
+    }
+  } catch(e) {
+    if (hint) hint.textContent = 'Tap to activate';
+  }
+}
+
+function playGreetingOnce() {
+  if (greetingPlayed) return;
+  greetingPlayed = true;
+  if (greetingAudioB64) {
+    playBase64Audio(greetingAudioB64);
+  } else {
+    const vid = voiceSelect.value || 'NYC9WEgkq1u4jiqBseQ9';
+    fetch('/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Online and ready, sir. Tap the microphone or type below.', voice_id: vid })
+    }).then(r => r.json()).then(d => { if (d.audio) playBase64Audio(d.audio); });
+  }
+}
+
+// Splash tap: unlock audio, play greeting, dismiss
+splash.addEventListener('click', async () => {
+  // Step 1: unlock audio — await so AudioContext is running before we play
+  await unlockAudio();
+
+  // Step 2: dismiss splash
+  splash.classList.add('hidden');
+  setTimeout(() => splash.style.display = 'none', 400);
+
+  // Step 3: play greeting (AudioContext is now running)
+  greetingPlayed = true;
+  if (greetingAudioB64) {
+    // Already fetched — play instantly
+    playBase64Audio(greetingAudioB64);
+  } else {
+    // Fetch now and play (still within resumed AudioContext — no new gesture needed)
+    try {
+      const vid = voiceSelect.value || 'NYC9WEgkq1u4jiqBseQ9';
+      const r = await fetch('/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: 'Online and ready, sir. Tap the microphone or type below.',
+          voice_id: vid
+        })
+      });
+      const d = await r.json();
+      if (d.audio) playBase64Audio(d.audio);
+    } catch(e) {}
+  }
+});
+
+// Update splash hint when greeting is ready
+loadVoices().then(() => {
+  prefetchGreeting().then(() => {
+    const hint = document.querySelector('.splash-hint');
+    if (hint && !greetingPlayed) hint.textContent = 'Tap to activate';
+  });
+});
+
+// ── Detect mic method ─────────────────────────────────────────────────────────
+// Always use MediaRecorder + server STT — works on Chrome/Firefox/Safari with HTTPS
+// Web Speech API is unreliable across browsers; skip it
+const hasMediaRecorder = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
+if (hasMediaRecorder) {
+  voiceNote.textContent = 'Tap mic → speak → tap again to send';
+} else {
+  voiceNote.textContent = 'Voice not supported in this browser — use text input below';
+  micBtn.disabled = true;
+  micBtn.title = 'Voice not supported';
+}
+
+// Ensure AudioContext is created+resumed on any user interaction
+document.addEventListener('touchstart', () => { unlockAudio(); }, { passive: true });
+document.addEventListener('mousedown', () => { unlockAudio(); }, { passive: true });
+
+
+
+
+
+async function transcribeAndSend(blob) {
+  setStatus('TRANSCRIBING');
+  hintText.textContent = 'transcribing…';
+  try {
+    const formData = new FormData();
+    formData.append('audio', blob, 'recording.webm');
+    const resp = await fetch('/transcribe', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.text && data.text.trim()) {
+      // Stop any playing audio before sending (clears processing TTS)
+      if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      audioUnlocked = true; // ensure unlock is set before sendMessage fires TTS
+      sendMessage(data.text.trim());
+    } else {
+      addMessage('error', 'Could not understand audio. Please try again.');
+      setStatus('READY');
+    }
+  } catch (e) {
+    addMessage('error', `Transcription failed: ${e.message}`);
+    setStatus('READY');
+  }
+  hintText.textContent = 'tap to speak';
+}
+
+// ── Unified stop ─────────────────────────────────────────────────────────────
+function stopRecording() {
+  isRecording = false;
+  micBtn.classList.remove('recording');
+  micRing.classList.remove('recording');
+  micBtn.textContent = '🎤';
+  hintText.textContent = 'tap to speak';
+}
+
+// ── Mic button ────────────────────────────────────────────────────────────────
+micBtn.addEventListener('click', () => {
+  unlockAudio();
+  audioUnlocked = true; // mic tap is a direct user gesture — force-unlock immediately
+  playGreetingOnce(); // plays greeting on very first tap
+  // Stop if already recording
+  if (isRecording) {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    stopRecording();
+    return;
+  }
+
+  if (!_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+  setStatus('REQUESTING MIC...');
+  hintText.textContent = 'requesting mic...';
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      audioChunks = [];
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+      mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunks, { type: mimeType });
+        if (blob.size < 500) {
+          addMessage('error', 'Recording too short — try again and speak clearly.');
+          setStatus('READY'); hintText.textContent = 'tap to speak';
+          return;
+        }
+        transcribeAndSend(blob);
+      };
+      mediaRecorder.onerror = e => { addMessage('error', `Recording error: ${e.error}`); stopRecording(); };
+      mediaRecorder.start(100);
+      isRecording = true;
+      micBtn.classList.add('recording');
+      micRing.classList.add('recording');
+      micBtn.textContent = '🔴';
+      hintText.textContent = 'recording… tap to stop';
+      setStatus('RECORDING');
+    })
+    .catch(err => {
+      addMessage('error', `🎤 Mic error: ${err.name} — ${err.message}`);
+      stopRecording();
+      setStatus('READY'); hintText.textContent = 'tap to speak';
+    });
+});
+
+// ── Send message to Hermes ────────────────────────────────────────────────────
+const THOUGHTS = [
+  'Get a cup of tea.',
+  'Stretch your legs for a moment.',
+  'Take a deep breath.',
+  'Check your posture.',
+  'Have a glass of water.',
+  'Look away from the screen for a second.',
+  'Crack your knuckles if you must.',
+  'The weather outside might be worth a glance.',
+  'A brief moment of zen never hurt anyone.',
+  'Consider blinking. Humans forget sometimes.',
+];
+
+// ── Streaming send — tokens appear as they arrive, then audio plays ────────
+async function sendMessage(text) {
+  if (!text.trim()) return;
+  addMessage('user', text);
+  const thinking = addThinking();
+  setStatus('THINKING');
+  enableStop();
+
+  // Processing TTS — only plays if model takes >2s (fires in background)
+  const thought = THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
+  const processingText = `Processing your request, sir. This may take a few moments. ${thought}`;
+  let processingAudioPlayed = false;
+  const processingTTSTimer = setTimeout(() => {
+    fetch('/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: processingText, voice_id: voiceSelect.value || 'NYC9WEgkq1u4jiqBseQ9' })
+    }).then(r => r.json()).then(d => {
+      if (d.audio && !streamingStarted) { processingAudioPlayed = true; playBase64Audio(d.audio); }
+    }).catch(() => {});
+  }, 2000); // only fire if no tokens in 2s
+
+  abortController = new AbortController();
+  const startTime = Date.now();
+  let streamingStarted = false;
+  let streamDiv = null;      // the live message bubble
+  let rawAccum = '';         // accumulated raw text for final formatMarkdown
+  let fullReply = '';
+
+  try {
+    const resp = await fetch('/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, voice_id: voiceSelect.value || null }),
+      signal: abortController.signal
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
+      throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      // Parse SSE events from buffer
+      const parts = buf.split('\n\n');
+      buf = parts.pop(); // keep incomplete last chunk
+
+      for (const part of parts) {
+        const lines = part.split('\n');
+        let evtType = 'message', evtData = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) evtType = line.slice(7).trim();
+          else if (line.startsWith('data: ')) evtData = line.slice(6).trim();
+        }
+        if (!evtData) continue;
+
+        let parsed;
+        try { parsed = JSON.parse(evtData); } catch { continue; }
+
+        if (evtType === 'progress') {
+          // Tool activity — show in thinking bubble while waiting for tokens
+          if (!streamingStarted && thinking) {
+            const dot = thinking.querySelector('.dot-flashing');
+            if (dot) {
+              const ptext = thinking.querySelector('.progress-text') ||
+                (() => { const s = document.createElement('span'); s.className='progress-text'; s.style.cssText='font-size:11px;color:#4fc3f7;margin-right:6px'; dot.parentNode.insertBefore(s, dot); return s; })();
+              ptext.textContent = parsed.text || '';
+            }
+          }
+        } else if (evtType === 'token') {
+          clearTimeout(processingTTSTimer);
+          if (!streamingStarted) {
+            streamingStarted = true;
+            thinking.remove();
+            // Stop processing TTS if it started
+            if (processingAudioPlayed && !_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+            // Create streaming bubble
+            streamDiv = document.createElement('div');
+            streamDiv.className = 'message jarvis';
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+            streamDiv.innerHTML = `<div class="speaker">JARVIS <span style="font-size:10px;opacity:0.5">${elapsed} ● streaming</span></div><div class="stream-content"></div>`;
+            chatArea.appendChild(streamDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            setStatus('STREAMING');
+          }
+          rawAccum += parsed.token;
+          fullReply += parsed.token;
+          // Update bubble with formatted content as lines arrive
+          const contentEl = streamDiv.querySelector('.stream-content');
+          if (contentEl) {
+            contentEl.innerHTML = formatMarkdown(rawAccum);
+            chatArea.scrollTop = chatArea.scrollHeight;
+          }
+        } else if (evtType === 'done') {
+          // Text complete — do final render
+          fullReply = parsed.reply || fullReply;
+          if (streamDiv) {
+            const contentEl = streamDiv.querySelector('.stream-content');
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+            streamDiv.querySelector('.speaker').innerHTML =
+              `JARVIS <span style="font-size:10px;opacity:0.5">${elapsed}</span>`;
+            if (contentEl) {
+            contentEl.innerHTML = formatMarkdown(fullReply);
+            contentEl.classList.add('done'); // stop blinking cursor
+          }
+          }
+          setStatus('THINKING'); // waiting for TTS
+        } else if (evtType === 'audio') {
+          // Audio ready — play it
+          if (parsed.audio) {
+            if (processingAudioPlayed && !_audioEl.paused) { _audioEl.pause(); _audioEl.src = ""; }
+            playBase64Audio(parsed.audio);
+            setStatus('SPEAKING');
+          } else {
+            setStatus('READY');
+            disableStop();
+          }
+        } else if (evtType === 'error') {
+          if (!streamingStarted) thinking.remove();
+          addMessage('error', parsed.detail || 'Stream error');
+          setStatus('READY');
+          disableStop();
+        }
+      }
+    }
+
+    // Stream ended without audio event — ensure we're in a clean state
+    if (!streamingStarted) {
+      thinking.remove();
+      addMessage('error', 'No response received.');
+    }
+    clearTimeout(processingTTSTimer);
+
+  } catch (e) {
+    clearTimeout(processingTTSTimer);
+    if (!streamingStarted) thinking.remove();
+    if (e.name !== 'AbortError') {
+      addMessage('error', `Connection error: ${e.message}`);
+    }
+    setStatus('READY');
+    disableStop();
+  } finally {
+    abortController = null;
+  }
+}
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+function playBase64Audio(b64) {
+  if (!audioUnlocked) {
+    audioQueue = [b64]; // queue — drained after first gesture unlocks
+    return;
+  }
+  // Stop current playback
+  if (!_audioEl.paused) { _audioEl.pause(); }
+  _audioEl.onended = null;
+  _audioEl.onerror = null;
+
+  const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: 'audio/mpeg' });
+  const url = URL.createObjectURL(blob);
+  _audioEl.src = url;
+  _audioEl.onended = () => { setStatus('READY'); disableStop(); URL.revokeObjectURL(url); };
+  _audioEl.onerror = () => { setStatus('READY'); disableStop(); URL.revokeObjectURL(url); };
+  _audioEl.play().catch(e => {
+    console.warn('Audio play failed:', e);
+    setStatus('READY'); disableStop();
+  });
+}
+
+function browserTTS(text) {
+  if (!text || !window.speechSynthesis) return;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.92; utt.pitch = 0.85;
+  const voices = speechSynthesis.getVoices();
+  const deep = voices.find(v => /daniel|oliver|male|en-gb/i.test(v.name + v.lang));
+  if (deep) utt.voice = deep;
+  speechSynthesis.speak(utt);
+  utt.onend = () => setStatus('READY');
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setStatus(s) {
+  statusPill.textContent = s;
+  // Colour-code the pill by state
+  const colours = {
+    'READY':        { bg: '#0d2040', border: '#1e3a5f', color: '#4fc3f7' },
+    'THINKING':     { bg: '#1a1a00', border: '#3a3a00', color: '#ffd700' },
+    'STREAMING':    { bg: '#001a10', border: '#003a20', color: '#00e676' },
+    'SPEAKING':     { bg: '#1a0030', border: '#3a0060', color: '#ce93d8' },
+    'TRANSCRIBING': { bg: '#1a0010', border: '#3a0030', color: '#f48fb1' },
+    'RECORDING':    { bg: '#1a0000', border: '#3a0000', color: '#ef5350' },
+  };
+  const c = colours[s] || colours['READY'];
+  statusPill.style.background = c.bg;
+  statusPill.style.borderColor = c.border;
+  statusPill.style.color = c.color;
+}
+
+function addMessage(role, text, elapsed) {
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  if (role === 'jarvis') {
+    const timerHtml = elapsed ? ` <span style="font-size:10px;color:#2a4060;float:right;margin-top:2px">${elapsed}</span>` : '';
+    div.innerHTML = `<div class="speaker">JARVIS${timerHtml}</div>${formatMarkdown(text)}`;
+  } else if (role === 'user') {
+    div.textContent = text;
+  } else {
+    div.textContent = text;
+  }
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return div;
+}
+
+function addThinking() {
+  const div = document.createElement('div');
+  div.className = 'thinking';
+  let secs = 0;
+  div.innerHTML = `Processing <span id="thinkTimer">0s</span> <div class="dot-flashing"><span></span><span></span><span></span></div>`;
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  div._timerInterval = setInterval(() => {
+    secs++;
+    const el = div.querySelector('#thinkTimer');
+    if (el) el.textContent = secs + 's';
+  }, 1000);
+  const origRemove = div.remove.bind(div);
+  div.remove = () => { clearInterval(div._timerInterval); origRemove(); };
+  return div;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatMarkdown(text) {
+  // ── Unescape literal \n and \t sequences from JSON/escaped strings ────────
+  // Some backends return literal backslash-n instead of real newlines
+  text = text.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+
+  // ── Tables ────────────────────────────────────────────────────────────────
+  // Detect and convert markdown tables before other processing
+  function renderTables(raw) {
+    const lines = raw.split('\n');
+    let out = [];
+    let i = 0;
+    while (i < lines.length) {
+      // A table starts with a pipe-delimited header row followed by a separator row
+      if (
+        i + 1 < lines.length &&
+        /^\|.+\|/.test(lines[i]) &&
+        /^\|[\s:\-|]+\|/.test(lines[i + 1])
+      ) {
+        const headers = lines[i].split('|').map(h => h.trim()).filter(Boolean);
+        i += 2; // skip header + separator
+        let rows = [];
+        while (i < lines.length && /^\|.+\|/.test(lines[i])) {
+          rows.push(lines[i].split('|').map(c => c.trim()).filter(Boolean));
+          i++;
+        }
+        // Build HTML table
+        let tbl = '<div style="overflow-x:auto;margin:8px 0">';
+        tbl += '<table style="border-collapse:collapse;width:100%;font-size:13px">';
+        tbl += '<thead><tr>';
+        headers.forEach(h => {
+          tbl += `<th style="background:#0a1e35;color:#7dd3fc;padding:5px 10px;border:1px solid #1e3a5f;text-align:left;white-space:nowrap">${escHtml(h)}</th>`;
+        });
+        tbl += '</tr></thead><tbody>';
+        rows.forEach((row, ri) => {
+          const bg = ri % 2 === 0 ? '#060f1e' : '#0a1628';
+          tbl += `<tr style="background:${bg}">`;
+          row.forEach(cell => {
+            tbl += `<td style="padding:4px 10px;border:1px solid #1e3a5f;color:#cbd5e1">${escHtml(cell)}</td>`;
+          });
+          tbl += '</tr>';
+        });
+        tbl += '</tbody></table></div>';
+        out.push(tbl);
+      } else {
+        out.push(lines[i]);
+        i++;
+      }
+    }
+    return out.join('\n');
+  }
+
+  // ── Code blocks (preserve before escaping) ────────────────────────────────
+  const codeBlocks = [];
+  text = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(code.trim());
+    return `%%CODE_BLOCK_${idx}%%`;
+  });
+
+  // Render tables on raw text (before HTML escaping)
+  text = renderTables(text);
+
+  // Escape HTML in non-table, non-code parts
+  // Split on table HTML we already generated, escape the rest
+  const parts = text.split(/(%%CODE_BLOCK_\d+%%|<div style="overflow-x[\s\S]*?<\/div>)/);
+  text = parts.map((p, pi) => {
+    if (p.startsWith('%%CODE_BLOCK_')) {
+      const idx = parseInt(p.match(/\d+/)[0]);
+      return `<pre style="background:#0a1628;padding:8px 12px;border-radius:6px;overflow-x:auto;margin:6px 0;font-size:12px;color:#7dd3fc;border-left:3px solid #1e3a5f"><code>${escHtml(codeBlocks[idx])}</code></pre>`;
+    }
+    if (p.startsWith('<div style="overflow-x')) return p; // already HTML
+    let s = escHtml(p);
+    // Bold **text**
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic *text* (but not inside words)
+    s = s.replace(/(^|\s)\*([^*\n]+?)\*($|\s)/g, '$1<em>$2</em>$3');
+    // Headers ### ## #
+    s = s.replace(/^### (.+)$/gm, '<div style="font-size:13px;color:#4fc3f7;letter-spacing:1px;text-transform:uppercase;margin:10px 0 4px">$1</div>');
+    s = s.replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:#7dd3fc;margin:12px 0 4px">$1</div>');
+    s = s.replace(/^# (.+)$/gm, '<div style="font-size:17px;font-weight:700;color:#93c5fd;margin:14px 0 6px">$1</div>');
+    // Bullet points (including indented sub-bullets)
+    s = s.replace(/^([ \t]+)[\-\*•] (.+)$/gm, '<div style="padding:2px 0 2px 24px;border-left:2px solid #0f2a45;color:#94a3b8">$2</div>');
+    s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="padding:2px 0 2px 12px;border-left:2px solid #1e3a5f">$1</div>');
+    // Numbered list
+    s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="padding:2px 0"><span style="color:#4fc3f7;font-weight:600">$1.</span> $2</div>');
+    // Inline code `text`
+    s = s.replace(/`([^`]+)`/g, '<code style="background:#0a1628;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;color:#7dd3fc">$1</code>');
+    // Horizontal rule ---
+    s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #1e3a5f;margin:8px 0">');
+    // Line breaks
+    s = s.replace(/\n\n/g, '<br><br>');
+    s = s.replace(/\n/g, '<br>');
+    return s;
+  }).join('');
+  return text;
+}
+
+// ── Text input ────────────────────────────────────────────────────────────────
+sendBtn.addEventListener("click", async () => {
+  await unlockAudio();
+  playGreetingOnce();
+  sendMessage(textInput.value);
+  textInput.value = '';
+});
+textInput.addEventListener('keydown', async e => {
+  if (e.key === "Enter") {
+    await unlockAudio();
+    sendMessage(textInput.value);
+    textInput.value = "";
+  }
+});
+</script>
+</body>
+</html>
